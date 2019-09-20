@@ -1,0 +1,3 @@
+%{
+  "ranch": {:hex, :ranch, "2.0.0-rc.1", "4a5e2ea6ff81bcfee6b401c04344e79c5bb2febc80b4106a1f6f5bb7083eb51c", [:rebar3], [], "hexpm"},
+}
