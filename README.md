@@ -1,21 +1,9 @@
 # Creep
 
-**TODO: Add description**
+Highly experimental Pure Elixir MQTT Broker.
 
-## Installation
+[target specification is 3.1.1](http://docs.oasis-open.org/mqtt/mqtt/v3.1.1/csprd02/mqtt-v3.1.1-csprd02.html)
+Nothing works. 
 
-If [available in Hex](https://hex.pm/docs/publish), the package can be installed
-by adding `creep` to your list of dependencies in `mix.exs`:
-
-```elixir
-def deps do
-  [
-    {:creep, "~> 0.1.0"}
-  ]
-end
-```
-
-Documentation can be generated with [ExDoc](https://github.com/elixir-lang/ex_doc)
-and published on [HexDocs](https://hexdocs.pm). Once published, the docs can
-be found at [https://hexdocs.pm/creep](https://hexdocs.pm/creep).
-
+## Why the name
+[a collection of tortoises is called a creep](http://mentalfloss.com/article/56805/16-fun-facts-about-tortoises)
