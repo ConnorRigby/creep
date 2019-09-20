@@ -7,6 +7,13 @@ defmodule Creep.MixProject do
       version: "0.1.0",
       elixir: "~> 1.9",
       start_permanent: Mix.env() == :prod,
+      test_coverage: [tool: ExCoveralls],
+      preferred_cli_env: [
+        coveralls: :test,
+        "coveralls.detail": :test,
+        "coveralls.post": :test,
+        "coveralls.html": :test
+      ],
       deps: deps()
     ]
   end
@@ -22,7 +29,9 @@ defmodule Creep.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:ranch, "~> 2.0-rc.1"}
+      {:ranch, "~> 2.0-rc.1"},
+      {:excoveralls, "~> 0.10", only: :test},
+      {:tortoise, "~> 0.9.4", only: [:test, :dev]}
     ]
   end
 end
