@@ -14,7 +14,8 @@ defmodule Creep.SessionRegistry do
     Unsubscribe,
     Unsuback,
     Pingreq,
-    Pingresp
+    Pingresp,
+    Disconnect
   }
 
   alias Creep.Session
@@ -111,6 +112,30 @@ defmodule Creep.SessionRegistry do
 
   def handle_call({:pingreq, _session_id, %Pingreq{}}, _from, state) do
     {:reply, %Pingresp{}, state}
+  end
+
+  def handle_call({:disconnect, session_id, %Disconnect{}}, _from, state) do
+    # delete session and do last will
+    case state.sessions[session_id] do
+      # no last will
+      %Session{last_will_topic: nil, last_will_message: nil} ->
+        {:reply, nil, state}
+
+      # qos 0 last will
+      %Session{last_will_qos: 0, last_will_topic: topic, last_will_message: message} ->
+        for {_, %Session{pid: pid}} <- Map.delete(state.sessions, session_id) do
+          send(pid, %Publish{
+            dup: false,
+            qos: 0,
+            retain: false,
+            topic: topic,
+            payload: message,
+            packet_id: nil
+          })
+        end
+
+        {:reply, nil, state}
+    end
   end
 
   defp add_session_to_state(state, %Connect{clean_session: true} = connect, pid) do

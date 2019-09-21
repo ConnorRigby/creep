@@ -36,17 +36,4 @@ defmodule Creep do
 
     Supervisor.init(children, strategy: :one_for_all)
   end
-
-  def connection_test(client_id \\ "my_client_id") do
-    Tortoise.Supervisor.start_child(
-      client_id: client_id,
-      handler: {Tortoise.Handler.Logger, []},
-      server: {Tortoise.Transport.Tcp, host: 'localhost', port: 1883},
-      subscriptions: [{"a/#", 0}]
-    )
-  end
-
-  def publish_test(client_id \\ "my_client_id") do
-    Tortoise.publish(client_id, "a/b", "Hello from the World of Tomorrow !", qos: 0)
-  end
 end
