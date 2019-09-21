@@ -1,4 +1,7 @@
 defmodule Creep.ConnectionHandler do
+  @moduledoc """
+  ranch protocol for handling tcp connections
+  """
   alias Creep.Packet
 
   alias Packet.{

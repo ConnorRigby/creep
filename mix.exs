@@ -30,8 +30,9 @@ defmodule Creep.MixProject do
   defp deps do
     [
       {:ranch, "~> 2.0-rc.1"},
+      {:tortoise, "~> 0.9.4", only: [:test, :dev]},
       {:excoveralls, "~> 0.10", only: :test},
-      {:tortoise, "~> 0.9.4", only: [:test, :dev]}
+      {:dialyxir, "1.0.0-rc.6", only: [:test, :dev]}
     ]
   end
 end

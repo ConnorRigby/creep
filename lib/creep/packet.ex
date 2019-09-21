@@ -1,4 +1,10 @@
 defmodule Creep.Packet do
+  @moduledoc """
+  Functions for encoding/decoding MQTT packets
+  """
+
+  alias Creep.Packet
+
   alias Creep.Packet.{
     Connect,
     Connack,
@@ -17,15 +23,18 @@ defmodule Creep.Packet do
   }
 
   defprotocol Encode do
+    @moduledoc false
     @doc "Encode data to a binary"
     def encode(data)
   end
 
   defprotocol Decode do
+    @moduledoc false
     @doc "Decode data to a struct"
     def decode(data, packet)
   end
 
+  # packet types
   @type_connect 0x01
   @type_connack 0x02
   @type_publish 0x03
@@ -41,65 +50,90 @@ defmodule Creep.Packet do
   @type_pingresp 0xD
   @type_disconnect 0xE
 
-  def decode(<<@type_connect::4, _::4, _::binary>> = connect) do
-    {:ok, Decode.decode(%Connect{}, connect)}
+  @typedoc "struct describing an MQTT packet"
+  @type t() ::
+          Connect.t()
+          | Connack.t()
+          | Publish.t()
+          | Puback.t()
+          | Pubrec.t()
+          | Pubrel.t()
+          | Pubcomp.t()
+          | Subscribe.t()
+          | Suback.t()
+          | Unsubscribe.t()
+          | Unsuback.t()
+          | Pingreq.t()
+          | Pingresp.t()
+          | Disconnect.t()
+
+  @doc "Decode an MQTT packet"
+  @spec decode(binary()) :: {:ok, Packet.t()} | {:error, term()}
+  def decode(binary) do
+    try do
+      case decode_dispatch(binary) do
+        {:error, reason} -> {:error, reason}
+        decoded -> decoded
+      end
+    catch
+      _, _ -> {:error, :invalid_packet}
+    end
   end
 
-  def decode(<<@type_connack::4, _::4, _::binary>> = connack) do
-    {:ok, Decode.decode(%Connack{}, connack)}
-  end
-
-  def decode(<<@type_publish::4, _::4, _::binary>> = publish) do
-    {:ok, Decode.decode(%Publish{}, publish)}
-  end
-
-  def decode(<<@type_puback::4, _::4, _::binary>> = puback) do
-    {:ok, Decode.decode(%Puback{}, puback)}
-  end
-
-  def decode(<<@type_pubrec::4, _::4, _::binary>> = pubrec) do
-    {:ok, Decode.decode(%Pubrec{}, pubrec)}
-  end
-
-  def decode(<<@type_pubrel::4, _::4, _::binary>> = pubrel) do
-    {:ok, Decode.decode(%Pubrel{}, pubrel)}
-  end
-
-  def decode(<<@type_pubcomp::4, _::4, _::binary>> = pubcomp) do
-    {:ok, Decode.decode(%Pubcomp{}, pubcomp)}
-  end
-
-  def decode(<<@type_subscribe::4, _::4, _::binary>> = subscribe) do
-    {:ok, Decode.decode(%Subscribe{}, subscribe)}
-  end
-
-  def decode(<<@type_suback::4, _::4, _::binary>> = suback) do
-    {:ok, Decode.decode(%Suback{}, suback)}
-  end
-
-  def decode(<<@type_unsubscribe::4, _::4, _::binary>> = unsubscribe) do
-    {:ok, Decode.decode(%Unsubscribe{}, unsubscribe)}
-  end
-
-  def decode(<<@type_unsuback::4, _::4, _::binary>> = unsuback) do
-    {:ok, Decode.decode(%Unsuback{}, unsuback)}
-  end
-
-  def decode(<<@type_pingreq::4, _::4, _::binary>> = pingreq) do
-    {:ok, Decode.decode(%Pingreq{}, pingreq)}
-  end
-
-  def decode(<<@type_pingresp::4, _::4, _::binary>> = pingresp) do
-    {:ok, Decode.decode(%Pingresp{}, pingresp)}
-  end
-
-  def decode(<<@type_disconnect::4, _::4, _::binary>> = disconnect) do
-    {:ok, Decode.decode(%Disconnect{}, disconnect)}
-  end
-
-  def decode(unknown), do: {:error, {:unknown, unknown}}
-
+  @doc "Encode a packet back to a binary"
+  @spec encode(Packet.t()) :: {:ok, binary()} | {:error, term()}
   def encode(%_type{} = data) do
-    {:ok, Encode.encode(data)}
+    try do
+      case Encode.encode(data) do
+        encoded when is_binary(encoded) -> {:ok, encoded}
+        {:error, reason} -> {:error, reason}
+      end
+    catch
+      _, _ -> {:error, :invalid_packet}
+    end
   end
+
+  defp decode_dispatch(<<@type_connect::4, _::4, _::binary>> = connect),
+    do: Decode.decode(%Connect{}, connect)
+
+  defp decode_dispatch(<<@type_connack::4, _::4, _::binary>> = connack),
+    do: Decode.decode(%Connack{}, connack)
+
+  defp decode_dispatch(<<@type_publish::4, _::4, _::binary>> = publish),
+    do: Decode.decode(%Publish{}, publish)
+
+  defp decode_dispatch(<<@type_puback::4, _::4, _::binary>> = puback),
+    do: Decode.decode(%Puback{}, puback)
+
+  defp decode_dispatch(<<@type_pubrec::4, _::4, _::binary>> = pubrec),
+    do: Decode.decode(%Pubrec{}, pubrec)
+
+  defp decode_dispatch(<<@type_pubrel::4, _::4, _::binary>> = pubrel),
+    do: Decode.decode(%Pubrel{}, pubrel)
+
+  defp decode_dispatch(<<@type_pubcomp::4, _::4, _::binary>> = pubcomp),
+    do: Decode.decode(%Pubcomp{}, pubcomp)
+
+  defp decode_dispatch(<<@type_subscribe::4, _::4, _::binary>> = subscribe),
+    do: Decode.decode(%Subscribe{}, subscribe)
+
+  defp decode_dispatch(<<@type_suback::4, _::4, _::binary>> = suback),
+    do: Decode.decode(%Suback{}, suback)
+
+  defp decode_dispatch(<<@type_unsubscribe::4, _::4, _::binary>> = unsubscribe),
+    do: Decode.decode(%Unsubscribe{}, unsubscribe)
+
+  defp decode_dispatch(<<@type_unsuback::4, _::4, _::binary>> = unsuback),
+    do: Decode.decode(%Unsuback{}, unsuback)
+
+  defp decode_dispatch(<<@type_pingreq::4, _::4, _::binary>> = pingreq),
+    do: Decode.decode(%Pingreq{}, pingreq)
+
+  defp decode_dispatch(<<@type_pingresp::4, _::4, _::binary>> = pingresp),
+    do: Decode.decode(%Pingresp{}, pingresp)
+
+  defp decode_dispatch(<<@type_disconnect::4, _::4, _::binary>> = disconnect),
+    do: Decode.decode(%Disconnect{}, disconnect)
+
+  defp decode_dispatch(unknown), do: {:error, {:unknown, unknown}}
 end
