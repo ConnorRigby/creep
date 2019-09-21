@@ -5,7 +5,17 @@ defmodule Creep.ConnectionHandler do
     Connect,
     Connack,
     Publish,
-    Puback
+    Puback,
+    Pubrec,
+    Pubrel,
+    Pubcomp,
+    Subscribe,
+    Suback,
+    Unsubscribe,
+    Unsuback,
+    Pingreq,
+    Pingresp,
+    Disconnect
   }
 
   @behaviour :ranch_protocol
@@ -45,14 +55,17 @@ defmodule Creep.ConnectionHandler do
     end
   end
 
-  def process(:internal, {%Connect{keep_alive: keep_alive}, socket}, data) do
+  def decode(:info, {:tcp_closed, _socket}, data) do
+    {:stop, :normal, data}
+  end
+
+  def process(:internal, {%Connect{keep_alive: _keep_alive}, socket}, data) do
     connack = %Connack{}
 
     case Packet.encode(connack) do
       {:ok, packet} ->
         :ok = data.transport.setopts(socket, [{:active, true}])
         :ok = data.transport.send(socket, packet)
-        Process.send_after(self(), :keep_alive, keep_alive * 1000)
         {:next_state, :decode, data, []}
 
       {:error, reason} ->
@@ -76,5 +89,77 @@ defmodule Creep.ConnectionHandler do
       {:error, reason} ->
         {:stop, reason, data}
     end
+  end
+
+  def process(:internal, {%Publish{qos: 2, packet_id: packet_id}, socket}, data) do
+    puback = %Pubrec{packet_id: packet_id}
+
+    case Packet.encode(puback) do
+      {:ok, packet} ->
+        :ok = data.transport.send(socket, packet)
+        {:next_state, :decode, data, []}
+
+      {:error, reason} ->
+        {:stop, reason, data}
+    end
+  end
+
+  def process(:internal, {%Pubrel{packet_id: packet_id}, socket}, data) do
+    puback = %Pubcomp{packet_id: packet_id}
+
+    case Packet.encode(puback) do
+      {:ok, packet} ->
+        :ok = data.transport.send(socket, packet)
+        {:next_state, :decode, data, []}
+
+      {:error, reason} ->
+        {:stop, reason, data}
+    end
+  end
+
+  def process(
+        :internal,
+        {%Subscribe{packet_id: packet_id, topic_filters: topic_filters}, socket},
+        data
+      ) do
+    responses = Enum.map(topic_filters, fn {_filter, qos} -> qos end)
+    suback = %Suback{packet_id: packet_id, responses: responses}
+
+    case Packet.encode(suback) do
+      {:ok, packet} ->
+        :ok = data.transport.send(socket, packet)
+        {:next_state, :decode, data, []}
+
+      {:error, reason} ->
+        {:stop, reason, data}
+    end
+  end
+
+  def process(:internal, {%Unsubscribe{packet_id: packet_id}, socket}, data) do
+    puback = %Unsuback{packet_id: packet_id}
+
+    case Packet.encode(puback) do
+      {:ok, packet} ->
+        :ok = data.transport.send(socket, packet)
+        {:next_state, :decode, data, []}
+
+      {:error, reason} ->
+        {:stop, reason, data}
+    end
+  end
+
+  def process(:internal, {%Pingreq{}, socket}, data) do
+    case Packet.encode(%Pingresp{}) do
+      {:ok, packet} ->
+        :ok = data.transport.send(socket, packet)
+        {:next_state, :decode, data, []}
+
+      {:error, reason} ->
+        {:stop, reason, data}
+    end
+  end
+
+  def process(:internal, {%Disconnect{}, _socket}, data) do
+    {:stop, :normal, data}
   end
 end

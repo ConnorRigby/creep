@@ -19,6 +19,7 @@ defmodule Creep.Packet.Puback do
     def decode(%Puback{} = packet, <<
           @type_puback::4,
           _reserved::4,
+          2::8,
           packet_id::16
         >>) do
       %{packet | packet_id: packet_id}

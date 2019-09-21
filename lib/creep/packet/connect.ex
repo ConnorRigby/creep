@@ -113,9 +113,16 @@ defmodule Creep.Packet.Connect do
     end
 
     defp decode_connect_will_flags(
-           {<<_::1, _::1, _::1, 0::1, clean_session::1, _reserved::1>> = flags, payload, packet}
+           {<<_::1, _::1, _::1, will_qos::2, 0::1, clean_session::1, _reserved::1>> = flags,
+            payload, packet}
          ) do
-      {flags, payload, %{packet | last_will_retain: false, clean_session: bool(clean_session)}}
+      {flags, payload,
+       %{
+         packet
+         | last_will_qos: will_qos,
+           last_will_retain: false,
+           clean_session: bool(clean_session)
+       }}
     end
 
     # username=1
