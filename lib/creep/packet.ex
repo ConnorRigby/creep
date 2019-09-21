@@ -73,7 +73,7 @@ defmodule Creep.Packet do
     try do
       case decode_dispatch(binary) do
         {:error, reason} -> {:error, reason}
-        decoded -> decoded
+        decoded -> {:ok, decoded}
       end
     catch
       _, _ -> {:error, :invalid_packet}
@@ -89,7 +89,9 @@ defmodule Creep.Packet do
         {:error, reason} -> {:error, reason}
       end
     catch
-      _, _ -> {:error, :invalid_packet}
+      type, error ->
+        IO.inspect(error, label: "#{type}")
+        {:error, :invalid_packet}
     end
   end
 

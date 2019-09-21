@@ -6,7 +6,7 @@ defmodule Creep.Packet.Connect do
     :protocol_version,
     :clean_session,
     :keep_alive,
-    :client_identifier,
+    :client_id,
     :username,
     :password,
     :last_will_retain,
@@ -38,14 +38,14 @@ defmodule Creep.Packet.Connect do
         keep_alive::integer-16,
 
         # The Client Identifier (ClientId) MUST be present and MUST be the first field in the CONNECT packet payload [MQTT-3.1.3-3].
-        client_identifier_size::integer-16,
-        client_identifier::binary-size(client_identifier_size),
+        client_id_size::integer-16,
+        client_id::binary-size(client_id_size),
         payload::binary
       >> = payload
 
       packet = %Connect{
         packet
-        | client_identifier: client_identifier,
+        | client_id: client_id,
           keep_alive: keep_alive,
           protocol_name: protocol_name,
           protocol_version: protocol_version

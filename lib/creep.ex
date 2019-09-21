@@ -3,14 +3,17 @@ defmodule Creep do
   Functions to start/stop a broker
   """
 
+  require Logger
   use Supervisor
 
   alias Creep.{
+    SessionRegistry,
     ConnectionHandler
   }
 
   @type broker_port() :: integer()
-  @type broker_opt() :: broker_port()
+  @type broker_id() :: term()
+  @type broker_opt() :: broker_port() | broker_id()
 
   @doc """
   Start a broker instance
@@ -22,11 +25,13 @@ defmodule Creep do
 
   @impl Supervisor
   def init(args) do
+    broker_id = Keyword.fetch!(args, :broker_id)
+    Logger.info("Starting new Creep instance: #{broker_id}")
     port = Keyword.fetch!(args, :port)
 
     children = [
-      {ConectionTracker, args},
-      :ranch.child_spec(make_ref(), :ranch_tcp, [{:port, port}], ConnectionHandler, [])
+      {SessionRegistry, args},
+      :ranch.child_spec(make_ref(), :ranch_tcp, [{:port, port}], ConnectionHandler, args)
     ]
 
     Supervisor.init(children, strategy: :one_for_all)
@@ -37,7 +42,7 @@ defmodule Creep do
       client_id: "my_client_id",
       handler: {Tortoise.Handler.Logger, []},
       server: {Tortoise.Transport.Tcp, host: 'localhost', port: 1883},
-      subscriptions: [{"a/b", 2}, {"c/d", 0}]
+      subscriptions: [{"a/f", 0}]
     )
   end
 

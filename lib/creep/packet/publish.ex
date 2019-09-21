@@ -11,10 +11,23 @@ defmodule Creep.Packet.Publish do
   ]
 
   defimpl Creep.Packet.Encode, for: Publish do
+    import Creep.Packet.Util
     @type_publish 0x03
 
-    def encode(%Publish{}) do
-      <<@type_publish>>
+    def encode(%Publish{qos: 0} = publish) do
+      payload =
+        <<
+          byte_size(publish.topic)::16
+        >> <> publish.topic <> publish.payload
+
+      (<<
+         @type_publish::4,
+         bool(publish.dup)::1,
+         0::2,
+         bool(publish.retain)::1,
+         byte_size(payload)::8
+       >> <> payload)
+      |> IO.inspect(label: "HERE")
     end
   end
 
@@ -31,7 +44,7 @@ defmodule Creep.Packet.Publish do
           payload_size::8,
           payload::binary-size(payload_size)
         >>) do
-      <<topic_size::8, topic::binary-size(topic_size), payload::binary>> = payload
+      <<topic_size::16, topic::binary-size(topic_size), payload::binary>> = payload
       %{packet | dup: bool(dup), retain: bool(retain), qos: 0, topic: topic, payload: payload}
     end
 

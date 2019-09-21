@@ -32,7 +32,7 @@ defmodule Creep.MixProject do
       {:ranch, "~> 2.0-rc.1"},
       {:tortoise, "~> 0.9.4", only: [:test, :dev]},
       {:excoveralls, "~> 0.10", only: :test},
-      {:dialyxir, "1.0.0-rc.6", only: [:test, :dev]}
+      {:dialyxir, "1.0.0-rc.6", only: [:test, :dev], runtime: false}
     ]
   end
 end
