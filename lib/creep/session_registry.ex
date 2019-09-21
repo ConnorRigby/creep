@@ -11,6 +11,8 @@ defmodule Creep.SessionRegistry do
     Publish,
     Subscribe,
     Suback,
+    Unsubscribe,
+    Unsuback,
     Pingreq,
     Pingresp
   }
@@ -102,7 +104,9 @@ defmodule Creep.SessionRegistry do
     {:reply, reply, state}
   end
 
-  def handle_call({:unsubscribe, _session_id, _unsubscribe}, _from, _state) do
+  def handle_call({:unsubscribe, session_id, unsubscribe}, _from, state) do
+    {state, reply} = remove_subscriptions_from_state(state, unsubscribe, session_id)
+    {:reply, reply, state}
   end
 
   def handle_call({:pingreq, _session_id, %Pingreq{}}, _from, state) do
@@ -170,12 +174,24 @@ defmodule Creep.SessionRegistry do
     {%{state | sessions: Map.put(state.sessions, session_id, new_session)}, reply}
   end
 
+  defp remove_subscriptions_from_state(state, %Unsubscribe{} = unsubscribe, session_id) do
+    reply = %Unsuback{packet_id: unsubscribe.packet_id}
+    session = Map.fetch!(state.sessions, session_id)
+
+    new_topic_filters =
+      Enum.reject(session.topic_filters, fn {session_filter, _qos} ->
+        Enum.any?(unsubscribe.topic_filters, &matches_filter?(session_filter, &1))
+      end)
+
+    new_session = %{session | topic_filters: new_topic_filters}
+    {%{state | sessions: Map.put(state.sessions, session_id, new_session)}, reply}
+  end
+
   defp do_publish(state, publish) do
     Enum.filter(state.sessions, fn {_, %Session{topic_filters: topic_filters}} ->
       matches_any_filters?(topic_filters, publish)
     end)
-    |> Enum.each(fn {_, %Session{ref: ref, pid: pid}} ->
-      IO.puts("publishing packet to #{inspect(ref)}")
+    |> Enum.each(fn {_, %Session{ref: _ref, pid: pid}} ->
       send(pid, publish)
     end)
 
@@ -197,9 +213,14 @@ defmodule Creep.SessionRegistry do
   end
 
   defp matches_filter?(["#" | _], _), do: true
+  defp matches_filter?(_, ["#" | _]), do: true
 
   defp matches_filter?([section | filter_rest], [section | topic_rest]) do
     matches_filter?(filter_rest, topic_rest)
+  end
+
+  defp matches_filter?([_section_pattern | _filter_rest], [_section | _topic_rest]) do
+    false
   end
 
   defp matches_filter?([], []), do: true

@@ -10,24 +10,34 @@ defmodule Creep.Packet.Publish do
     :packet_id
   ]
 
+  def validate_topic!(topic) do
+    Enum.each(Path.split(topic), fn
+      "#" -> raise "Can not publish to wildcard topic"
+      _ -> :ok
+    end)
+
+    :ok
+  end
+
   defimpl Creep.Packet.Encode, for: Publish do
     import Creep.Packet.Util
     @type_publish 0x03
 
     def encode(%Publish{qos: 0} = publish) do
+      :ok = Publish.validate_topic!(publish.topic)
+
       payload =
         <<
           byte_size(publish.topic)::16
         >> <> publish.topic <> publish.payload
 
-      (<<
-         @type_publish::4,
-         bool(publish.dup)::1,
-         0::2,
-         bool(publish.retain)::1,
-         byte_size(payload)::8
-       >> <> payload)
-      |> IO.inspect(label: "HERE")
+      <<
+        @type_publish::4,
+        bool(publish.dup)::1,
+        0::2,
+        bool(publish.retain)::1,
+        byte_size(payload)::8
+      >> <> payload
     end
   end
 
@@ -45,6 +55,7 @@ defmodule Creep.Packet.Publish do
           payload::binary-size(payload_size)
         >>) do
       <<topic_size::16, topic::binary-size(topic_size), payload::binary>> = payload
+      :ok = Publish.validate_topic!(topic)
       %{packet | dup: bool(dup), retain: bool(retain), qos: 0, topic: topic, payload: payload}
     end
 
@@ -64,6 +75,8 @@ defmodule Creep.Packet.Publish do
         packet_id::16,
         payload::binary
       >> = payload
+
+      :ok = Publish.validate_topic!(topic)
 
       %{
         packet

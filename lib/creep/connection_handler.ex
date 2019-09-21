@@ -55,7 +55,6 @@ defmodule Creep.ConnectionHandler do
   end
 
   def decode(:info, %Publish{} = publish, data) do
-    IO.puts("publishing: #{inspect(publish)}")
     _ = reply(publish, data.socket, data)
     {:keep_state_and_data, []}
   end
@@ -65,12 +64,14 @@ defmodule Creep.ConnectionHandler do
   end
 
   def process(:internal, {%Connect{} = connect, socket}, data) do
+    _ = Logger.metadata(client_id: connect.client_id)
     :ok = data.transport.setopts(socket, [{:active, true}])
     {connack, session} = SessionRegistry.connect(data.broker_id, connect)
     reply(connack, socket, %{data | session: session})
   end
 
   def process(:internal, {%Publish{} = publish, socket}, data) do
+    # TODO(Connor) Validate topic here somewhere 
     SessionRegistry.publish(data.broker_id, data.session, publish)
     |> reply(socket, data)
   end
@@ -107,12 +108,10 @@ defmodule Creep.ConnectionHandler do
   defp reply(reply, socket, data) do
     case Packet.encode(reply) do
       {:ok, packet} ->
-        IO.inspect(packet, label: "OUT")
         :ok = data.transport.send(socket, packet)
         {:next_state, :decode, data, []}
 
       {:error, reason} ->
-        IO.inspect(reason, label: "OUT CRASH")
         {:stop, reason, data}
     end
   end
