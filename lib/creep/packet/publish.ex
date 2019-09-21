@@ -1,6 +1,15 @@
 defmodule Creep.Packet.Publish do
   alias Creep.Packet.Publish
 
+  @type t() :: %Publish{
+          dup: boolean(),
+          qos: 0..2,
+          retain: boolean(),
+          topic: String.t(),
+          payload: binary(),
+          packet_id: nil | integer()
+        }
+
   defstruct [
     :dup,
     :qos,

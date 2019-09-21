@@ -1,0 +1,64 @@
+version: 2
+
+install_elixir: &install_elixir
+  run:
+    name: Install Elixir
+    command: |
+      wget https://repo.hex.pm/builds/elixir/v$ELIXIR_VERSION.zip
+      unzip -d /usr/local/elixir v$ELIXIR_VERSION.zip
+      echo 'export PATH=/usr/local/elixir/bin:$PATH' >> $BASH_ENV
+
+install_hex_rebar: &install_hex_rebar
+  run:
+    name: Install hex and rebar
+    command: |
+      mix local.hex --force
+      mix local.rebar --force
+
+install_mdl: &install_mdl
+  run:
+    name: Install Markdown Lint
+    command: |
+      apt update
+      apt install -y ruby
+      gem install mdl
+
+defaults: &defaults
+  working_directory: ~/repo
+
+jobs:
+  build_elixir_1_9_otp_22:
+    docker:
+      - image: erlang:22.0
+        environment:
+          ELIXIR_VERSION: 1.9.0-otp-22
+          LC_ALL: C.UTF-8
+          MIX_ENV: test
+    <<: *defaults
+    steps:
+      - checkout
+      - <<: *install_mdl
+      - <<: *install_elixir
+      - <<: *install_hex_rebar
+      - restore_cache:
+          keys:
+            - v1-mix-cache-{{ checksum "mix.lock" }}
+      - run: mix deps.get
+      - run: mix coveralls.circle
+      - run: mix format --check-formatted
+      - run: mdl --style .circleci/md-style.rb README.md
+      - run: mix docs
+      - run: mix hex.build
+      - run: mix dialyzer --halt-exit-status
+      - save_cache:
+          key: v1-mix-cache-{{ checksum "mix.lock" }}
+          paths:
+            - _build
+            - deps
+
+workflows:
+  version: 2
+  build_test:
+    jobs:
+      - build_elixir_1_9_otp_22:
+          context: org-global

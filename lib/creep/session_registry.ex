@@ -67,7 +67,7 @@ defmodule Creep.SessionRegistry do
   end
 
   @doc false
-  @spec start_link(Creep.broker_opts()) :: GenServer.on_start()
+  @spec start_link([Creep.broker_opt()]) :: GenServer.on_start()
   def start_link(args) do
     broker_id = Keyword.fetch!(args, :broker_id)
     name = Module.concat(__MODULE__, broker_id)

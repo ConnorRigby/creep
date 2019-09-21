@@ -1,6 +1,18 @@
 defmodule Creep.Packet.Connack do
   alias Creep.Packet.Connack
 
+  @type return_code ::
+          :accepted
+          | :unacceptable_protocol
+          | :identifier_rejected
+          | :server_unavailable
+          | :bad_username_or_password
+
+  @type t() :: %Connack{
+          session_present: boolean(),
+          return_code: return_code()
+        }
+
   defstruct session_present: false,
             return_code: :accepted
 

@@ -1,6 +1,11 @@
 defmodule Creep.Packet.Subscribe do
   alias Creep.Packet.Subscribe
 
+  @type t() :: %Subscribe{
+          packet_id: integer(),
+          topic_filters: [{String.t(), 0..2}]
+        }
+
   defstruct [
     :packet_id,
     topic_filters: []

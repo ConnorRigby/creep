@@ -1,6 +1,10 @@
 defmodule Creep.Packet.Puback do
   alias Creep.Packet.Puback
 
+  @type t() :: %Puback{
+          packet_id: integer()
+        }
+
   defstruct [
     :packet_id
   ]

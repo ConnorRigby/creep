@@ -1,5 +1,8 @@
 defmodule Creep.Packet.Pingreq do
   alias Creep.Packet.Pingreq
+
+  @type t() :: %Pingreq{}
+
   defstruct []
 
   defimpl Creep.Packet.Encode, for: Pingreq do

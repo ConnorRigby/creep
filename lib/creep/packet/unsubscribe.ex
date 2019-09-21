@@ -1,6 +1,11 @@
 defmodule Creep.Packet.Unsubscribe do
   alias Creep.Packet.Unsubscribe
 
+  @type t() :: %Unsubscribe{
+          packet_id: integer(),
+          topic_filters: [String.t()]
+        }
+
   defstruct [
     :packet_id,
     topic_filters: []

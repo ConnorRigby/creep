@@ -1,5 +1,7 @@
 defmodule Creep.Packet.Disconnect do
   alias Creep.Packet.Disconnect
+
+  @type t() :: %Disconnect{}
   defstruct []
 
   defimpl Creep.Packet.Encode, for: Disconnect do

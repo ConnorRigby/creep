@@ -1,6 +1,11 @@
 defmodule Creep.Packet.Suback do
   alias Creep.Packet.Suback
 
+  @type t() :: %Suback{
+          packet_id: integer(),
+          responses: [0..2 | 0x80]
+        }
+
   defstruct [
     :packet_id,
     responses: []
@@ -30,7 +35,7 @@ defmodule Creep.Packet.Suback do
           @type_suback::4,
           0::4,
           payload_length::8,
-          payload::size(payload_length)
+          payload::binary-size(payload_length)
         >>) do
       <<packet_id::16>> = payload
       %{packet | packet_id: packet_id}

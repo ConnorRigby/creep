@@ -1,6 +1,10 @@
 defmodule Creep.Packet.Pubcomp do
   alias Creep.Packet.Pubcomp
 
+  @type t() :: %Pubcomp{
+          packet_id: integer()
+        }
+
   defstruct [
     :packet_id
   ]

@@ -1,6 +1,10 @@
 defmodule Creep.Packet.Unsuback do
   alias Creep.Packet.Unsuback
 
+  @type t() :: %Unsuback{
+          packet_id: integer()
+        }
+
   defstruct [
     :packet_id
   ]
