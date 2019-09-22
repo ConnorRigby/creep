@@ -18,6 +18,8 @@ some things work.
   * `+` does not
 * packet parse errors should probably be cleaned up
 * performance might not be great?
+* only TCP is currently supported
+  * SSL and Websockets should be supported
 
 ## Why the name
 

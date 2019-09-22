@@ -49,6 +49,9 @@ defmodule Creep.ConnectionHandler do
         actions = [{:next_event, :internal, {packet, socket}}]
         {:next_state, :process, data, actions}
 
+      # Unless stated otherwise, if either the Server or Client encounters a 
+      # protocol violation, it MUST close the Network Connection on which it 
+      # received that Control Packet which caused the protocol violation [MQTT-4.8.0-1]. 
       {:error, reason} ->
         {:stop, reason, data}
     end

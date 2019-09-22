@@ -18,7 +18,7 @@ defmodule Creep.SessionRegistry do
     Disconnect
   }
 
-  alias Creep.Session
+  alias Creep.{Session, TopicFilter}
 
   use GenServer
   alias __MODULE__, as: State
@@ -205,16 +205,17 @@ defmodule Creep.SessionRegistry do
 
     new_topic_filters =
       Enum.reject(session.topic_filters, fn {session_filter, _qos} ->
-        Enum.any?(unsubscribe.topic_filters, &matches_filter?(session_filter, &1))
+        TopicFilter.matches_any_filters?(unsubscribe.topic_filters, session_filter)
       end)
 
     new_session = %{session | topic_filters: new_topic_filters}
     {%{state | sessions: Map.put(state.sessions, session_id, new_session)}, reply}
   end
 
-  defp do_publish(state, publish) do
+  defp do_publish(state, %Publish{} = publish) do
     Enum.filter(state.sessions, fn {_, %Session{topic_filters: topic_filters}} ->
-      matches_any_filters?(topic_filters, publish)
+      topic_filters = Enum.map(topic_filters, fn {topic_filter, _qos} -> topic_filter end)
+      TopicFilter.matches_any_filters?(topic_filters, publish.topic)
     end)
     |> Enum.each(fn {_, %Session{ref: _ref, pid: pid}} ->
       send(pid, publish)
@@ -222,31 +223,4 @@ defmodule Creep.SessionRegistry do
 
     :ok
   end
-
-  defp matches_any_filters?([{filter, _qos} | rest], %Publish{topic: topic}) do
-    if matches_filter?(filter, topic) do
-      true
-    else
-      matches_any_filters?(rest, topic)
-    end
-  end
-
-  defp matches_any_filters?([], _), do: false
-
-  defp matches_filter?(filter, topic) when is_binary(filter) do
-    matches_filter?(Path.split(filter), Path.split(topic))
-  end
-
-  defp matches_filter?(["#" | _], _), do: true
-  defp matches_filter?(_, ["#" | _]), do: true
-
-  defp matches_filter?([section | filter_rest], [section | topic_rest]) do
-    matches_filter?(filter_rest, topic_rest)
-  end
-
-  defp matches_filter?([_section_pattern | _filter_rest], [_section | _topic_rest]) do
-    false
-  end
-
-  defp matches_filter?([], []), do: true
 end
