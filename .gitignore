@@ -24,3 +24,7 @@ creep-*.tar
 
 /config
 
+/ssl
+
+integration/node_modules
+integration/etc

@@ -27,7 +27,13 @@ defmodule Creep.RanchTransport do
   @doc false
   def child_spec(opts) do
     transport_opts = Keyword.get(opts, :transport_opts, [])
-    :ranch.child_spec(make_ref(), :ranch_tcp, transport_opts, __MODULE__, opts)
+    {ssl?, transport_opts} = Keyword.pop(transport_opts, :ssl, false)
+
+    if ssl? do
+      :ranch.child_spec(make_ref(), :ranch_ssl, transport_opts, __MODULE__, opts)
+    else
+      :ranch.child_spec(make_ref(), :ranch_tcp, transport_opts, __MODULE__, opts)
+    end
   end
 
   @impl :ranch_protocol
@@ -58,17 +64,18 @@ defmodule Creep.RanchTransport do
       transport: transport,
       broker_id: broker_id,
       packet_processor: packet_processor,
-      session: nil
+      session: nil,
+      transport_type: :tcp
     }
 
     :gen_statem.enter_loop(__MODULE__, [], :decode, data, [])
   end
 
-  def decode(:info, {:tcp, socket, message}, data) do
+  def decode(:info, {type, socket, message}, data) when type in [:tcp, :ssl] do
     case Packet.decode(message) do
       {:ok, packet} ->
         actions = [{:next_event, :internal, {packet, socket}}]
-        {:next_state, :process, data, actions}
+        {:next_state, :process, %{data | transport_type: type}, actions}
 
       # Unless stated otherwise, if either the Server or Client encounters a 
       # protocol violation, it MUST close the Network Connection on which it 

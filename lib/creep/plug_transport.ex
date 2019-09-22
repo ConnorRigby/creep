@@ -5,6 +5,15 @@ defmodule Creep.PlugTransport do
   use Supervisor
   alias Creep.PlugTransport.{MQTTSocket, MQTTRouter}
 
+  def child_spec(opts) do
+    broker_id = Keyword.fetch!(opts, :broker_id)
+
+    %{
+      id: {__MODULE__, broker_id},
+      start: {__MODULE__, :start_link, opts}
+    }
+  end
+
   def start_link(opts) do
     Supervisor.start_link(__MODULE__, opts)
   end
@@ -12,13 +21,10 @@ defmodule Creep.PlugTransport do
   def init(opts) do
     Logger.info("Starting Websocket MQTT Broker")
     transport_opts = Keyword.get(opts, :transport_opts, [])
-    port = Keyword.fetch!(transport_opts, :port)
-    scheme = Keyword.get(transport_opts, :scheme, :http)
+    _ = Keyword.fetch!(transport_opts, :port)
+    {scheme, transport_opts} = Keyword.pop(transport_opts, :scheme, :http)
 
-    plug_opts = [
-      port: port,
-      dispatch: dispatch(opts)
-    ]
+    plug_opts = Keyword.merge(transport_opts, dispatch: dispatch(opts))
 
     children = [
       {Plug.Adapters.Cowboy, scheme: scheme, plug: Router, options: plug_opts}

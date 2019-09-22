@@ -28,8 +28,17 @@ defmodule Creep do
     Logger.info("Starting new Creep instance: #{broker_id}")
 
     transports =
-      Enum.map(transports, fn {module, transport_opts} ->
-        {module, Keyword.merge(args, transport_opts: transport_opts)}
+      Enum.map(transports, fn
+        {Creep.RanchTransport, transport_opts} ->
+          {Creep.RanchTransport, Keyword.merge(args, transport_opts: transport_opts)}
+
+        {Creep.PlugTransport, transport_opts} ->
+          %{
+            id: {Creep.PlugTransport, make_ref()},
+            start:
+              {Creep.PlugTransport, :start_link,
+               [Keyword.merge(args, transport_opts: transport_opts)]}
+          }
       end)
 
     children = [{packet_processor, args} | transports]

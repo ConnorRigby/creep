@@ -54,12 +54,48 @@ config :creep, Creep.Application,
   ]
 ```
 
+SSL:
+
+```elixir
+ssl_broker_opts = [
+  broker_id: "my_broker",
+  packet_processor: Creep.InMemProcessor,
+  transports: [
+    {Creep.RanchTransport,
+      [
+        port: 8883,
+        ssl: true,
+        cacertfile: '/home/connor/oss/elixir/creep/ssl/ca.crt',
+        certfile: '/home/connor/oss/elixir/creep/ssl/server.crt',
+        keyfile: '/home/connor/oss/elixir/creep/ssl/server.key'
+      ]},
+    {Creep.RanchTransport, [port: 1883]},
+    {Creep.PlugTransport, [port: 4000]}
+  ]
+]
+{:ok, ssl_broker_pid} = Creep.start_link(ssl_broker_opts)
+
+ssl_client_opts = [
+  client_id: "smart-spoon",
+  handler: {Tortoise.Handler.Logger, []},
+  server: {
+    Tortoise.Transport.SSL,
+    host: 'localhost', port: 8883,
+    cacertfile: '/home/connor/oss/elixir/creep/ssl/ca.crt',
+    certfile: '/home/connor/oss/elixir/creep/ssl/server.crt',
+    keyfile: '/home/connor/oss/elixir/creep/ssl/server.key'
+  },
+  subscriptions: [{"foo/bar", 0}])
+]
+{:ok, ssl_client_pid} = Tortoise.Supervisor.start_child(ssl_client_opts)
+```
+
 ## Progress
 
 - [X] 3.1.1 packet decode/encode
 - [ ] 5.0.0 packet decode/encode
 - [X] TCP transport
-- [ ] SSL transport
+- [X] SSL transport
 - [X] WebSocket transport (http)
 - [ ] WebSocket transport (https)
 - [ ] better Plug integration?
