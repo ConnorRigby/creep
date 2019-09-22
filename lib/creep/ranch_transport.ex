@@ -2,6 +2,7 @@ defmodule Creep.RanchTransport do
   @moduledoc """
   ranch protocol for handling tcp connections
   """
+  require Logger
 
   alias Creep.Packet
 
@@ -88,6 +89,7 @@ defmodule Creep.RanchTransport do
 
   def process(:internal, {%Connect{} = connect, socket}, data) do
     _ = Logger.metadata(client_id: connect.client_id)
+    Logger.info("New TCP Broker connection")
     :ok = data.transport.setopts(socket, [{:active, true}])
     {connack, session} = data.packet_processor.connect(data.broker_id, connect)
     reply(connack, socket, %{data | session: session})

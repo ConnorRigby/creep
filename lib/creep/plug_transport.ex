@@ -1,4 +1,5 @@
 defmodule Creep.PlugTransport do
+  require Logger
   @behaviour Creep.PacketTransport
 
   use Supervisor
@@ -9,6 +10,7 @@ defmodule Creep.PlugTransport do
   end
 
   def init(opts) do
+    Logger.info("Starting Websocket MQTT Broker")
     transport_opts = Keyword.get(opts, :transport_opts, [])
     port = Keyword.fetch!(transport_opts, :port)
     scheme = Keyword.get(transport_opts, :scheme, :http)

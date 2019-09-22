@@ -4,7 +4,7 @@ defmodule Creep.Application do
   use Application
 
   def start(_type, _args) do
-    brokers = Application.get_env(:creep, __MODULE__)[:brokers]
+    brokers = Application.get_env(:creep, __MODULE__)[:brokers] || []
 
     children =
       for opts <- brokers do

@@ -6,46 +6,69 @@
 
 Highly experimental Pure Elixir MQTT Broker.
 
-[target specification is 3.1.1](http://docs.oasis-open.org/mqtt/mqtt/v3.1.1/csprd02/mqtt-v3.1.1-csprd02.html)
+[target specification is currently 3.1.1](http://docs.oasis-open.org/mqtt/mqtt/v3.1.1/csprd02/mqtt-v3.1.1-csprd02.html)
 some things work.
 
 ## Usage
 
 The following is heavily subject to change.
 
-```elixir
-iex()> {:ok, broker_pid} = Creep.start_link([broker_id: "my_broker", transport: Creep.RanchTransport, transport_opts: [port: 1883]])
-{:ok, #PID<0.273.0>}
+From IEx:
 
-iex()> {:ok, client_pid} = Tortoise.Supervisor.start_child(
+```elixir
+broker_opts = [
+    broker_id: "my_broker",
+    packet_processor: Creep.InMemProcessor,
+    transports: [
+        {Creep.RanchTransport, [port: 1883]},
+        {Creep.PlugTransport, [port: 4000]}
+    ]
+]
+{:ok, broker_pid} = Creep.start_link(broker_opts)
+
+client_opts = [
     client_id: "my_client",
     handler: {Tortoise.Handler.Logger, []},
     server: {Tortoise.Transport.Tcp, host: 'localhost', port: 1883},
-    subscriptions: [{"foo/bar", 0}])
-{:ok, #PID<0.299.0>}
-19:47:14.791 [info]  Initializing handler
-
-19:47:14.791 [info]  Connection has been established
-
-19:47:14.799 [info]  Subscribed to foo/bar
-
-iex()> Tortoise.publish_sync("my_client", "foo/bar", "hello, world")
-:ok
-19:47:38.804 [info]  foo/bar "hello, world"
-iex()>
+    subscriptions: [{"testtopic/1", 0}]
+]
+{:ok, client_pid} = Tortoise.Supervisor.start_child(client_opts)
+Tortoise.publish_sync("my_client", "testtopic/1", "hello, from TCP")
 ```
 
-## Known issues
+From `config.exs`:
 
-* Only QOS 0 is currently supported
-* Session management should be backed in ETS or something probably
-* wildcards are only partially implemented
-  * `#` works
-  * `+` does not
-* packet parse errors should probably be cleaned up
-* performance might not be great?
-* only TCP is currently supported
-  * SSL and Websockets should be supported
+```elixir
+use Mix.Config
+
+config :creep, Creep.Application,
+  brokers: [
+    [
+      broker_id: "my_broker",
+      packet_processor: Creep.InMemProcessor,
+      transports: [
+          {Creep.RanchTransport, [port: 1883]},
+          {Creep.PlugTransport, [port: 4000]}
+      ]
+    ]
+  ]
+```
+
+## Progress
+
+- [X] 3.1.1 packet decode/encode
+- [ ] 5.0.0 packet decode/encode
+- [X] TCP transport
+- [ ] SSL transport
+- [X] WebSocket transport (http)
+- [ ] WebSocket transport (https)
+- [ ] better Plug integration?
+- [X] Publish/Subscribe QOS 0
+- [ ] Publish/Subscribe QOS 1
+- [ ] Publish/Subscribe QOS 2
+- [ ] Extension API
+- [ ] Session management
+- [ ] Benchmarks
 
 ## Why the name
 

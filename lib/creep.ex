@@ -6,11 +6,6 @@ defmodule Creep do
   require Logger
   use Supervisor
 
-  alias Creep.{
-    InMemProcessor,
-    RanchTransport
-  }
-
   @type broker_id() :: term()
   @type transport_opts() :: Keyword.t()
   @type broker_opt() ::
@@ -28,19 +23,16 @@ defmodule Creep do
   @impl Supervisor
   def init(args) do
     broker_id = Keyword.fetch!(args, :broker_id)
+    transports = Keyword.fetch!(args, :transports)
+    packet_processor = Keyword.fetch!(args, :packet_processor)
     Logger.info("Starting new Creep instance: #{broker_id}")
 
-    args = Keyword.put_new(args, :packet_processor, InMemProcessor)
-    args = Keyword.put_new(args, :packet_transport, RanchTransport)
+    transports =
+      Enum.map(transports, fn {module, transport_opts} ->
+        {module, Keyword.merge(args, transport_opts: transport_opts)}
+      end)
 
-    packet_processor = Keyword.fetch!(args, :packet_processor)
-    packet_transport = Keyword.fetch!(args, :packet_transport)
-
-    children = [
-      {packet_processor, args},
-      {packet_transport, args}
-    ]
-
+    children = [{packet_processor, args} | transports]
     Supervisor.init(children, strategy: :one_for_all)
   end
 end

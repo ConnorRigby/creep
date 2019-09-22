@@ -64,6 +64,7 @@ defmodule Creep.PlugTransport.MQTTSocket do
 
   def process(%Connect{} = connect, data) do
     _ = Logger.metadata(client_id: connect.client_id)
+    Logger.info("New WebSocket Broker connection")
     {connack, session} = data.packet_processor.connect(data.broker_id, connect)
     reply(connack, %{data | session: session})
   end

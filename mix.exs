@@ -26,7 +26,7 @@ defmodule Creep.MixProject do
   def application do
     [
       extra_applications: [:logger],
-      start: {Creep.Application, []}
+      mod: {Creep.Application, []}
     ]
   end
 
