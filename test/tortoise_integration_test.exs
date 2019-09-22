@@ -39,7 +39,7 @@ defmodule Creep.TortoiseIntegrationTest do
     broker_id = :rand.uniform() |> to_string()
     client_id = :rand.uniform() |> to_string()
     port = Enum.random(60000..60123)
-    {:ok, pid} = Creep.start_link(port: port, broker_id: broker_id)
+    {:ok, pid} = Creep.start_link(broker_id: broker_id, transport_opts: [port: port])
     {:ok, %{broker: pid, broker_id: broker_id, client_id: client_id, port: port}}
   end
 

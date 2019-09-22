@@ -7,13 +7,15 @@ defmodule Creep do
   use Supervisor
 
   alias Creep.{
-    SessionRegistry,
-    ConnectionHandler
+    InMemProcessor,
+    RanchTransport
   }
 
-  @type broker_port() :: integer()
   @type broker_id() :: term()
-  @type broker_opt() :: broker_port() | broker_id()
+  @type transport_opts() :: Keyword.t()
+  @type broker_opt() ::
+          {:transport_opts, transport_opts()}
+          | {:broker_id, broker_id()}
 
   @doc """
   Start a broker instance
@@ -27,11 +29,16 @@ defmodule Creep do
   def init(args) do
     broker_id = Keyword.fetch!(args, :broker_id)
     Logger.info("Starting new Creep instance: #{broker_id}")
-    port = Keyword.fetch!(args, :port)
+
+    args = Keyword.put_new(args, :packet_processor, InMemProcessor)
+    args = Keyword.put_new(args, :packet_transport, RanchTransport)
+
+    packet_processor = Keyword.fetch!(args, :packet_processor)
+    packet_transport = Keyword.fetch!(args, :packet_transport)
 
     children = [
-      {SessionRegistry, args},
-      :ranch.child_spec(make_ref(), :ranch_tcp, [{:port, port}], ConnectionHandler, args)
+      {packet_processor, args},
+      {packet_transport, args}
     ]
 
     Supervisor.init(children, strategy: :one_for_all)

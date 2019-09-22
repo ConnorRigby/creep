@@ -1,12 +1,14 @@
 defmodule Creep.Packet.Connect do
   alias Creep.Packet.Connect
 
+  @type client_id :: String.t()
+
   @type t :: %Connect{
           protocol_name: String.t(),
           protocol_version: integer(),
           clean_session: boolean(),
           keep_alive: integer(),
-          client_id: String.t(),
+          client_id: client_id(),
           username: nil | String.t(),
           password: nil | String.t(),
           last_will_retain: boolean(),

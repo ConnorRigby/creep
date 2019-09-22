@@ -1,8 +1,9 @@
-defmodule Creep.ConnectionHandler do
+defmodule Creep.RanchTransport do
   @moduledoc """
   ranch protocol for handling tcp connections
   """
-  alias Creep.{Packet, SessionRegistry}
+
+  alias Creep.Packet
 
   alias Packet.{
     Connect,
@@ -14,8 +15,17 @@ defmodule Creep.ConnectionHandler do
     Disconnect
   }
 
+  @behaviour Creep.PacketTransport
+
   @behaviour :ranch_protocol
   @behaviour :gen_statem
+
+  @impl Creep.PacketTransport
+  @doc false
+  def child_spec(opts) do
+    transport_opts = Keyword.get(opts, :transport_opts, [])
+    :ranch.child_spec(make_ref(), :ranch_tcp, transport_opts, __MODULE__, opts)
+  end
 
   @impl :ranch_protocol
   def start_link(ref, transport, protocol_opts) do
@@ -32,11 +42,13 @@ defmodule Creep.ConnectionHandler do
     {:ok, socket} = :ranch.handshake(ref)
     :ok = transport.setopts(socket, [{:active, :once}])
     broker_id = Keyword.fetch!(protocol_opts, :broker_id)
+    packet_processor = Keyword.fetch!(protocol_opts, :packet_processor)
 
     data = %{
       socket: socket,
       transport: transport,
       broker_id: broker_id,
+      packet_processor: packet_processor,
       session: nil
     }
 
@@ -69,38 +81,38 @@ defmodule Creep.ConnectionHandler do
   def process(:internal, {%Connect{} = connect, socket}, data) do
     _ = Logger.metadata(client_id: connect.client_id)
     :ok = data.transport.setopts(socket, [{:active, true}])
-    {connack, session} = SessionRegistry.connect(data.broker_id, connect)
+    {connack, session} = data.packet_processor.connect(data.broker_id, connect)
     reply(connack, socket, %{data | session: session})
   end
 
   def process(:internal, {%Publish{} = publish, socket}, data) do
     # TODO(Connor) Validate topic here somewhere 
-    SessionRegistry.publish(data.broker_id, data.session, publish)
+    data.packet_processor.publish(data.broker_id, data.session, publish)
     |> reply(socket, data)
   end
 
   def process(:internal, {%Pubrel{} = pubrel, socket}, data) do
-    SessionRegistry.pubrel(data.broker_id, data.session, pubrel)
+    data.packet_processor.pubrel(data.broker_id, data.session, pubrel)
     |> reply(socket, data)
   end
 
   def process(:internal, {%Subscribe{} = subscribe, socket}, data) do
-    SessionRegistry.subscribe(data.broker_id, data.session, subscribe)
+    data.packet_processor.subscribe(data.broker_id, data.session, subscribe)
     |> reply(socket, data)
   end
 
   def process(:internal, {%Unsubscribe{} = unsubscribe, socket}, data) do
-    SessionRegistry.unsubscribe(data.broker_id, data.session, unsubscribe)
+    data.packet_processor.unsubscribe(data.broker_id, data.session, unsubscribe)
     |> reply(socket, data)
   end
 
   def process(:internal, {%Pingreq{} = pingreq, socket}, data) do
-    SessionRegistry.pingreq(data.broker_id, data.session, pingreq)
+    data.packet_processor.pingreq(data.broker_id, data.session, pingreq)
     |> reply(socket, data)
   end
 
   def process(:internal, {%Disconnect{} = disconnect, _socket}, data) do
-    _ = SessionRegistry.disconnect(data.broker_id, data.session, disconnect)
+    _ = data.packet_processor.disconnect(data.broker_id, data.session, disconnect)
     {:stop, :normal, data}
   end
 

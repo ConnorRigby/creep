@@ -1,9 +1,9 @@
-defmodule Creep.SessionRegistry do
+defmodule Creep.InMemProcessor do
   @moduledoc """
-  Tracks all connections to a broker
+  Tracks all connections to a broker in local memory
   """
 
-  @behaviour Creep.PacketHandler
+  @behaviour Creep.PacketProcessor
 
   alias Creep.Packet.{
     Connect,
@@ -22,45 +22,49 @@ defmodule Creep.SessionRegistry do
 
   use GenServer
   alias __MODULE__, as: State
+
+  @type state :: %State{
+          sessions: [Session.t()]
+        }
   defstruct [:sessions]
 
-  @impl Creep.PacketHandler
+  @impl Creep.PacketProcessor
   def connect(broker_id, connect) do
     name = Module.concat(__MODULE__, broker_id)
     GenServer.call(name, {:connect, connect})
   end
 
-  @impl Creep.PacketHandler
+  @impl Creep.PacketProcessor
   def publish(broker_id, session_id, publish) do
     name = Module.concat(__MODULE__, broker_id)
     GenServer.call(name, {:publish, session_id, publish})
   end
 
-  @impl Creep.PacketHandler
+  @impl Creep.PacketProcessor
   def pubrel(broker_id, session_id, pubrel) do
     name = Module.concat(__MODULE__, broker_id)
     GenServer.call(name, {:pubrel, session_id, pubrel})
   end
 
-  @impl Creep.PacketHandler
+  @impl Creep.PacketProcessor
   def subscribe(broker_id, session_id, subscribe) do
     name = Module.concat(__MODULE__, broker_id)
     GenServer.call(name, {:subscribe, session_id, subscribe})
   end
 
-  @impl Creep.PacketHandler
+  @impl Creep.PacketProcessor
   def unsubscribe(broker_id, session_id, unsubscribe) do
     name = Module.concat(__MODULE__, broker_id)
     GenServer.call(name, {:unsubscribe, session_id, unsubscribe})
   end
 
-  @impl Creep.PacketHandler
+  @impl Creep.PacketProcessor
   def pingreq(broker_id, session_id, pingreq) do
     name = Module.concat(__MODULE__, broker_id)
     GenServer.call(name, {:pingreq, session_id, pingreq})
   end
 
-  @impl Creep.PacketHandler
+  @impl Creep.PacketProcessor
   def disconnect(broker_id, session_id, disconnect) do
     name = Module.concat(__MODULE__, broker_id)
     GenServer.call(name, {:disconnect, session_id, disconnect})
