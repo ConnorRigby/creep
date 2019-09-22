@@ -87,7 +87,7 @@ defmodule Creep.InMemProcessor do
 
   # he Server MUST respond to the CONNECT Packet with a CONNACK return code 0x01 (unacceptable protocol level) and then disconnect the Client if the Protocol Level is not supported by the Server [MQTT-3.1.2-2]
   def handle_call({:connect, %Connect{protocol_version: v}}, _from, state)
-      when v != 4 do
+      when v not in [3, 4] do
     {:reply, %Connack{return_code: :unacceptable_protocol}, state}
   end
 

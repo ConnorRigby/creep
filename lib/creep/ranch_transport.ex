@@ -15,12 +15,14 @@ defmodule Creep.RanchTransport do
     Disconnect
   }
 
-  @behaviour Creep.PacketTransport
+  # Ranch 1.7 does not allow this unfortunately
+  # @behaviour Creep.PacketTransport
 
   @behaviour :ranch_protocol
   @behaviour :gen_statem
 
-  @impl Creep.PacketTransport
+  # Ranch 1.7 does not allow this unfortunately
+  # @impl Creep.PacketTransport
   @doc false
   def child_spec(opts) do
     transport_opts = Keyword.get(opts, :transport_opts, [])
@@ -28,6 +30,12 @@ defmodule Creep.RanchTransport do
   end
 
   @impl :ranch_protocol
+  def start_link(ref, _socket, transport, protocol_opts) do
+    {:ok, :proc_lib.spawn_link(__MODULE__, :init, [{ref, transport, protocol_opts}])}
+  end
+
+  # @impl :ranch_protocol
+  # compat for ranch 2.x
   def start_link(ref, transport, protocol_opts) do
     {:ok, :proc_lib.spawn_link(__MODULE__, :init, [{ref, transport, protocol_opts}])}
   end

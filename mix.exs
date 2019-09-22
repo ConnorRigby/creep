@@ -4,7 +4,7 @@ defmodule Creep.MixProject do
   def project do
     [
       app: :creep,
-      version: "0.1.0-alpha",
+      version: "0.1.0",
       elixir: "~> 1.9",
       start_permanent: Mix.env() == :prod,
       test_coverage: [tool: ExCoveralls],
@@ -13,6 +13,9 @@ defmodule Creep.MixProject do
         "coveralls.detail": :test,
         "coveralls.post": :test,
         "coveralls.html": :test
+      ],
+      dialyzer: [
+        plt_add_apps: [:plug, :cowboy]
       ],
       deps: deps(),
       package: package()
@@ -43,7 +46,8 @@ defmodule Creep.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:ranch, "~> 2.0-rc.1"},
+      {:ranch, "1.7.1"},
+      {:plug_cowboy, "~> 2.1", optional: true},
       {:tortoise, "~> 0.9.4", only: [:test, :dev]},
       {:excoveralls, "~> 0.10", only: :test},
       {:dialyxir, "1.0.0-rc.6", only: [:test, :dev], runtime: false},
