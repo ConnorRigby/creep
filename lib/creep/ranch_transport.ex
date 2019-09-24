@@ -76,6 +76,8 @@ defmodule Creep.RanchTransport do
   end
 
   def decode(:info, {type, socket, message}, data) when type in [:tcp, :ssl] do
+    Logger.info("Received packet: #{inspect(message, base: :hex)}")
+
     case Packet.decode(message) do
       {:ok, packet} ->
         actions = [{:next_event, :internal, {packet, socket}}]
@@ -94,6 +96,10 @@ defmodule Creep.RanchTransport do
     {:keep_state_and_data, []}
   end
 
+  def decode(:info, %Disconnect{} = disconnect, data) do
+    {:stop, :normal, data}
+  end
+
   def decode(:info, {:tcp_closed, _socket}, data) do
     {:stop, :normal, data}
   end
@@ -102,8 +108,9 @@ defmodule Creep.RanchTransport do
     _ = Logger.metadata(client_id: connect.client_id)
     Logger.info("New TCP Broker connection")
     :ok = data.transport.setopts(socket, [{:active, true}])
-    {connack, session} = data.packet_processor.connect(data.broker_id, connect)
-    reply(connack, socket, %{data | session: session})
+
+    data.packet_processor.connect(data.broker_id, connect)
+    |> reply(socket, data)
   end
 
   def process(:internal, {%Publish{} = publish, socket}, data) do
@@ -118,6 +125,8 @@ defmodule Creep.RanchTransport do
   end
 
   def process(:internal, {%Subscribe{} = subscribe, socket}, data) do
+    Logger.info("Subscribe #{inspect(subscribe.topic_filters)}")
+
     data.packet_processor.subscribe(data.broker_id, data.session, subscribe)
     |> reply(socket, data)
   end
@@ -137,18 +146,18 @@ defmodule Creep.RanchTransport do
     {:stop, :normal, data}
   end
 
-  defp reply(nil, _socket, data) do
-    {:next_state, :decode, data, []}
+  defp reply({nil, session}, _socket, data) do
+    {:next_state, :decode, %{data | session: session}, []}
   end
 
-  defp reply(reply, socket, data) do
+  defp reply({reply, session}, socket, data) do
     case Packet.encode(reply) do
       {:ok, packet} ->
         :ok = data.transport.send(socket, packet)
-        {:next_state, :decode, data, []}
+        {:next_state, :decode, %{data | session: session}, []}
 
       {:error, reason} ->
-        {:stop, reason, data}
+        {:stop, reason, %{data | session: session}}
     end
   end
 end

@@ -11,12 +11,13 @@ defmodule Creep.Packet.Publish do
         }
 
   defstruct [
+    :packet_id,
+    :session_id,
     :dup,
     :qos,
     :retain,
     :topic,
-    :payload,
-    :packet_id
+    :payload
   ]
 
   def validate_topic!(topic) do
