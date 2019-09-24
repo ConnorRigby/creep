@@ -14,7 +14,8 @@ defmodule Creep.Session do
           last_will_message: String.t() | nil,
           ref: reference(),
           pid: pid(),
-          topic_filters: [{String.t(), 0..2}]
+          topic_filters: [{String.t(), 0..2}],
+          broker_id: Creep.broker_id()
         }
 
   defstruct [
@@ -25,6 +26,7 @@ defmodule Creep.Session do
     :last_will_message,
     :ref,
     :pid,
+    :broker_id,
     topic_filters: []
   ]
 end

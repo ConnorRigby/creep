@@ -44,4 +44,15 @@ defmodule Creep do
     children = [{packet_processor, args} | transports]
     Supervisor.init(children, strategy: :one_for_all)
   end
+
+  def connection do
+    Application.ensure_all_started(:tortoise)
+
+    Tortoise.Supervisor.start_child(
+      client_id: "my_client_id",
+      handler: {Tortoise.Handler.Logger, []},
+      server: {Tortoise.Transport.Tcp, host: 'localhost', port: 1883},
+      subscriptions: []
+    )
+  end
 end

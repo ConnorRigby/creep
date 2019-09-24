@@ -20,8 +20,20 @@ defmodule Creep.Packet.Connack do
     import Creep.Packet.Util
     @type_connack 0x02
     def encode(%Connack{session_present: sp, return_code: rc}) do
-      <<@type_connack::4, 0::4, 0x02::8, bool(sp)::1, 0::1, 0::1, 0::1, 0::1, 0::1, 0::1, 0::1,
-        return_code(rc)::8>>
+      <<
+        @type_connack::4,
+        0::4,
+        0x02::8,
+        0::1,
+        0::1,
+        0::1,
+        0::1,
+        0::1,
+        0::1,
+        0::1,
+        bool(sp)::1,
+        return_code(rc)::8
+      >>
     end
 
     def return_code(:accepted), do: 0x00

@@ -71,6 +71,10 @@ defmodule Creep.RanchTransport do
     :gen_statem.enter_loop(__MODULE__, [], :decode, data, [])
   end
 
+  def terminate(_reason, _state, data) do
+    data.packet_processor.disconnect(data.broker_id, data.session, %Disconnect{})
+  end
+
   def decode(:info, {type, socket, message}, data) when type in [:tcp, :ssl] do
     case Packet.decode(message) do
       {:ok, packet} ->
