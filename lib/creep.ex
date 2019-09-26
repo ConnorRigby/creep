@@ -52,7 +52,7 @@ defmodule Creep do
       client_id: "my_client_id",
       handler: {Tortoise.Handler.Logger, []},
       server: {Tortoise.Transport.Tcp, host: 'localhost', port: 1883},
-      subscriptions: []
+      subscriptions: [{"hello", 0}]
     )
   end
 end

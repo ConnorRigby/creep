@@ -1,8 +1,9 @@
 defmodule Creep.Packet.Disconnect do
   alias Creep.Packet.Disconnect
 
-  @type t() :: %Disconnect{}
-  defstruct []
+  @type disconnect_reason() :: :normal | :protocol_violation | any()
+  @type t() :: %Disconnect{reason: disconnect_reason}
+  defstruct reason: :normal
 
   defimpl Creep.Packet.Encode, for: Disconnect do
     @type_disconnect 0xE

@@ -11,6 +11,7 @@ defmodule Creep.MnesiaProcessor do
   alias Creep.Packet.{
     Connack,
     Publish,
+    Puback,
     Subscribe,
     Suback,
     Unsubscribe,
@@ -132,6 +133,40 @@ defmodule Creep.MnesiaProcessor do
     |> update_session(params)
   end
 
+  def get_sessions_matching_topic(topic) do
+    match = fn ->
+      match = %Session{
+        last_will_retain: :_,
+        last_will_qos: :_,
+        last_will_topic: :_,
+        last_will_message: :_,
+        ref: :_,
+        pid: :_,
+        topic_filters: :_,
+        client_id: :_,
+        broker_id: :_
+      }
+
+      :mnesia.match_object(to_record(match))
+    end
+
+    case :mnesia.transaction(match) do
+      {:atomic, data} when is_list(data) ->
+        filtered =
+          data
+          |> Enum.map(&to_elixir/1)
+          |> Enum.filter(fn %{topic_filters: topic_filters} ->
+            topic_filters = Enum.map(topic_filters, fn {topic_filter, _qos} -> topic_filter end)
+            TopicFilter.matches_any_filters?(topic_filters, topic)
+          end)
+
+        {:ok, filtered}
+
+      {:aborted, reason} ->
+        {:error, reason}
+    end
+  end
+
   @impl Creep.PacketProcessor
   def connect(broker_id, connect) do
     session_pid = self()
@@ -175,15 +210,24 @@ defmodule Creep.MnesiaProcessor do
   end
 
   @impl Creep.PacketProcessor
-  def publish(broker_id, session, %Publish{qos: 0}) do
-    # Enum.filter(state.sessions, fn {_, %Session{topic_filters: topic_filters}} ->
-    #   topic_filters = Enum.map(topic_filters, fn {topic_filter, _qos} -> topic_filter end)
-    #   TopicFilter.matches_any_filters?(topic_filters, publish.topic)
-    # end)
-    # |> Enum.each(fn {_, %Session{ref: _ref, pid: pid}} ->
-    #   send(pid, publish)
-    # end)
+  def publish(broker_id, session, %Publish{qos: 0} = publish) do
+    {:ok, sessions} = get_sessions_matching_topic(publish.topic)
+
+    for %{pid: pid} when is_pid(pid) <- sessions do
+      Process.alive?(pid) && send(pid, publish)
+    end
+
     {nil, session}
+  end
+
+  def publish(broker_id, session, %Publish{qos: 1} = publish) do
+    {:ok, sessions} = get_sessions_matching_topic(publish.topic)
+
+    for %{pid: pid} when is_pid(pid) <- sessions do
+      Process.alive?(pid) && send(pid, publish)
+    end
+
+    {%Puback{packet_id: publish.packet_id}, session}
   end
 
   @impl Creep.PacketProcessor
@@ -224,11 +268,15 @@ defmodule Creep.MnesiaProcessor do
   end
 
   @impl Creep.PacketProcessor
-  def disconnect(broker_id, %Session{pid: pid} = session, _disconnect) do
+  def disconnect(broker_id, %Session{pid: pid} = session, %{reason: reason}) do
     case get_session_by_client_id(broker_id, session.client_id) do
-      {:ok, %{pid: ^pid}} when is_pid(pid) ->
+      {:ok, %{pid: ^pid}} when is_pid(pid) and reason == :normal ->
         Logger.info("disconnecting session")
         {:ok, _new_session} = update_session(session, %{ref: nil, pid: nil, topic_filters: []})
+
+      {:ok, %{pid: ^pid}} when is_pid(pid) and reason == :normal ->
+        Logger.info("disconnecting session due to crash")
+        {:ok, _new_session} = update_session(session, %{ref: nil, pid: nil})
 
       {:ok, _stored} ->
         Logger.info("session already disconnected")
@@ -240,10 +288,10 @@ defmodule Creep.MnesiaProcessor do
     end
   end
 
-  defp to_elixir(
-         {Session, client_id, broker_id, ref, pid, last_will_retain, last_will_qos,
-          last_will_topic, last_will_message, topic_filters}
-       ) do
+  def to_elixir(
+        {Session, client_id, broker_id, ref, pid, last_will_retain, last_will_qos,
+         last_will_topic, last_will_message, topic_filters}
+      ) do
     %Session{
       client_id: client_id,
       broker_id: broker_id,
@@ -257,22 +305,22 @@ defmodule Creep.MnesiaProcessor do
     }
   end
 
-  defp to_elixir(%Session{} = session), do: session
+  def to_elixir(%Session{} = session), do: session
 
-  defp to_record(%Session{
-         client_id: client_id,
-         broker_id: broker_id,
-         ref: ref,
-         pid: pid,
-         last_will_retain: last_will_retain,
-         last_will_qos: last_will_qos,
-         last_will_topic: last_will_topic,
-         last_will_message: last_will_message,
-         topic_filters: topic_filters
-       }) do
+  def to_record(%Session{
+        client_id: client_id,
+        broker_id: broker_id,
+        ref: ref,
+        pid: pid,
+        last_will_retain: last_will_retain,
+        last_will_qos: last_will_qos,
+        last_will_topic: last_will_topic,
+        last_will_message: last_will_message,
+        topic_filters: topic_filters
+      }) do
     {Session, client_id, broker_id, ref, pid, last_will_retain, last_will_qos, last_will_topic,
      last_will_message, topic_filters}
   end
 
-  defp to_record(session_record) when is_tuple(session_record), do: session_record
+  def to_record(session_record) when is_tuple(session_record), do: session_record
 end

@@ -71,8 +71,9 @@ defmodule Creep.RanchTransport do
     :gen_statem.enter_loop(__MODULE__, [], :decode, data, [])
   end
 
-  def terminate(_reason, _state, data) do
-    data.packet_processor.disconnect(data.broker_id, data.session, %Disconnect{})
+  @impl :gen_statem
+  def terminate(reason, _state, data) do
+    data.packet_processor.disconnect(data.broker_id, data.session, %Disconnect{reason: reason})
   end
 
   def decode(:info, {type, socket, message}, data) when type in [:tcp, :ssl] do
@@ -92,12 +93,11 @@ defmodule Creep.RanchTransport do
   end
 
   def decode(:info, %Publish{} = publish, data) do
-    _ = reply(publish, data.socket, data)
-    {:keep_state_and_data, []}
+    reply({publish, data.session}, data.socket, data)
   end
 
-  def decode(:info, %Disconnect{} = disconnect, data) do
-    {:stop, :normal, data}
+  def decode(:info, %Disconnect{reason: reason}, data) do
+    {:stop, reason, data}
   end
 
   def decode(:info, {:tcp_closed, _socket}, data) do
@@ -114,7 +114,6 @@ defmodule Creep.RanchTransport do
   end
 
   def process(:internal, {%Publish{} = publish, socket}, data) do
-    # TODO(Connor) Validate topic here somewhere 
     data.packet_processor.publish(data.broker_id, data.session, publish)
     |> reply(socket, data)
   end
@@ -141,9 +140,9 @@ defmodule Creep.RanchTransport do
     |> reply(socket, data)
   end
 
-  def process(:internal, {%Disconnect{} = disconnect, _socket}, data) do
+  def process(:internal, {%Disconnect{reason: reason} = disconnect, _socket}, data) do
     _ = data.packet_processor.disconnect(data.broker_id, data.session, disconnect)
-    {:stop, :normal, data}
+    {:stop, reason, data}
   end
 
   defp reply({nil, session}, _socket, data) do
