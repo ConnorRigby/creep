@@ -34,17 +34,41 @@ defmodule Creep.Packet.Publish do
     @type_publish 0x03
 
     def encode(%Publish{qos: 0} = publish) do
+      IO.inspect(publish.payload, label: "PUBLISH.PAYLOAD")
       :ok = Publish.validate_topic!(publish.topic)
+      topic_size = byte_size(publish.topic)
 
-      payload =
-        <<
-          byte_size(publish.topic)::16
-        >> <> publish.topic <> publish.payload
+      payload = <<
+        topic_size::16,
+        publish.topic::binary-size(topic_size),
+        publish.payload::binary
+      >>
 
       <<
         @type_publish::4,
         bool(publish.dup)::1,
         0::2,
+        bool(publish.retain)::1,
+        byte_size(payload)::8
+      >> <> payload
+    end
+
+    def encode(%Publish{qos: qos} = publish) when qos in [1, 2] do
+      IO.inspect(publish.payload, label: "PUBLISH.PAYLOAD")
+      :ok = Publish.validate_topic!(publish.topic)
+      topic_size = byte_size(publish.topic)
+
+      payload = <<
+        topic_size::16,
+        publish.topic::binary-size(topic_size),
+        publish.packet_id::16,
+        publish.payload::binary
+      >>
+
+      <<
+        @type_publish::4,
+        bool(publish.dup)::1,
+        qos::2,
         bool(publish.retain)::1,
         byte_size(payload)::8
       >> <> payload

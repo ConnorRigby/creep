@@ -12,6 +12,9 @@ defmodule Creep.MnesiaProcessor do
     Connack,
     Publish,
     Puback,
+    Pubrec,
+    Pubrel,
+    Pubcomp,
     Subscribe,
     Suback,
     Unsubscribe,
@@ -46,22 +49,12 @@ defmodule Creep.MnesiaProcessor do
       :last_will_qos,
       :last_will_topic,
       :last_will_message,
-      :topic_filters
-    ]
-
-    publish_attrs = [
-      :packet_id,
-      :session_id,
-      :dup,
-      :qos,
-      :retain,
-      :topic,
-      :payload
+      :topic_filters,
+      :publishes
     ]
 
     with {:atomic, :ok} <-
-           :mnesia.create_table(Session, attributes: session_attrs, index: [:broker_id, :pid]),
-         {:atomic, :ok} <- :mnesia.create_table(Publish, attributes: publish_attrs, index: []) do
+           :mnesia.create_table(Session, attributes: session_attrs, index: [:broker_id, :pid]) do
       :ignore
     else
       {:aborted, {:already_exists, Session}} -> :ignore
@@ -79,6 +72,7 @@ defmodule Creep.MnesiaProcessor do
         ref: :_,
         pid: :_,
         topic_filters: :_,
+        publishes: :_,
         client_id: client_id,
         broker_id: broker_id
       }
@@ -133,7 +127,7 @@ defmodule Creep.MnesiaProcessor do
     |> update_session(params)
   end
 
-  def get_sessions_matching_topic(topic) do
+  def get_sessions_matching_topic(broker_id, topic) do
     match = fn ->
       match = %Session{
         last_will_retain: :_,
@@ -143,8 +137,9 @@ defmodule Creep.MnesiaProcessor do
         ref: :_,
         pid: :_,
         topic_filters: :_,
+        publishes: :_,
         client_id: :_,
-        broker_id: :_
+        broker_id: broker_id
       }
 
       :mnesia.match_object(to_record(match))
@@ -164,6 +159,28 @@ defmodule Creep.MnesiaProcessor do
 
       {:aborted, reason} ->
         {:error, reason}
+    end
+  end
+
+  @spec add_publish_to_session(Session.t(), Publish.t()) :: Session.t()
+  def add_publish_to_session(%Session{} = session, %Publish{} = publish) do
+    case update_session(session, %{publishes: [publish | session.publishes]}) do
+      {:ok, session} -> session
+      _ -> session
+    end
+  end
+
+  @spec clear_publish_from_session(Session.t(), Puback.t() | Pubrel.t()) :: Session.t()
+  def clear_publish_from_session(%Session{} = session, %_type{packet_id: packet_id}) do
+    publishes =
+      Enum.reject(session.publishes, fn
+        %{packet_id: ^packet_id} -> true
+        _ -> false
+      end)
+
+    case update_session(session, %{publishes: publishes}) do
+      {:ok, session} -> session
+      _ -> session
     end
   end
 
@@ -211,7 +228,7 @@ defmodule Creep.MnesiaProcessor do
 
   @impl Creep.PacketProcessor
   def publish(broker_id, session, %Publish{qos: 0} = publish) do
-    {:ok, sessions} = get_sessions_matching_topic(publish.topic)
+    {:ok, sessions} = get_sessions_matching_topic(broker_id, publish.topic)
 
     for %{pid: pid} when is_pid(pid) <- sessions do
       Process.alive?(pid) && send(pid, publish)
@@ -221,17 +238,45 @@ defmodule Creep.MnesiaProcessor do
   end
 
   def publish(broker_id, session, %Publish{qos: 1} = publish) do
-    {:ok, sessions} = get_sessions_matching_topic(publish.topic)
+    {:ok, sessions} = get_sessions_matching_topic(broker_id, publish.topic)
 
     for %{pid: pid} when is_pid(pid) <- sessions do
       Process.alive?(pid) && send(pid, publish)
     end
 
-    {%Puback{packet_id: publish.packet_id}, session}
+    puback = %Puback{
+      packet_id: publish.packet_id
+    }
+
+    {puback, add_publish_to_session(session, publish)}
+  end
+
+  def publish(broker_id, session, %Publish{qos: 2} = publish) do
+    {:ok, sessions} = get_sessions_matching_topic(broker_id, publish.topic)
+
+    for %{pid: pid} when is_pid(pid) <- sessions do
+      Process.alive?(pid) && send(pid, publish)
+    end
+
+    pubrec = %Pubrec{
+      packet_id: publish.packet_id
+    }
+
+    {pubrec, add_publish_to_session(session, publish)}
   end
 
   @impl Creep.PacketProcessor
-  def pubrel(broker_id, session_id, pubrel) do
+  def puback(_broker_id, session, %Puback{} = puback) do
+    {nil, clear_publish_from_session(session, puback)}
+  end
+
+  @impl Creep.PacketProcessor
+  def pubrel(_broker_id, session, %Pubrel{} = pubrel) do
+    pubcomp = %Pubcomp{
+      packet_id: pubrel.packet_id
+    }
+
+    {pubcomp, clear_publish_from_session(session, pubrel)}
   end
 
   @impl Creep.PacketProcessor
@@ -290,7 +335,7 @@ defmodule Creep.MnesiaProcessor do
 
   def to_elixir(
         {Session, client_id, broker_id, ref, pid, last_will_retain, last_will_qos,
-         last_will_topic, last_will_message, topic_filters}
+         last_will_topic, last_will_message, topic_filters, publishes}
       ) do
     %Session{
       client_id: client_id,
@@ -301,7 +346,8 @@ defmodule Creep.MnesiaProcessor do
       last_will_qos: last_will_qos,
       last_will_topic: last_will_topic,
       last_will_message: last_will_message,
-      topic_filters: topic_filters
+      topic_filters: topic_filters,
+      publishes: publishes
     }
   end
 
@@ -316,10 +362,11 @@ defmodule Creep.MnesiaProcessor do
         last_will_qos: last_will_qos,
         last_will_topic: last_will_topic,
         last_will_message: last_will_message,
-        topic_filters: topic_filters
+        topic_filters: topic_filters,
+        publishes: publishes
       }) do
     {Session, client_id, broker_id, ref, pid, last_will_retain, last_will_qos, last_will_topic,
-     last_will_message, topic_filters}
+     last_will_message, topic_filters, publishes}
   end
 
   def to_record(session_record) when is_tuple(session_record), do: session_record

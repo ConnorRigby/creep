@@ -9,6 +9,7 @@ defmodule Creep.RanchTransport do
   alias Packet.{
     Connect,
     Publish,
+    Puback,
     Pubrel,
     Subscribe,
     Unsubscribe,
@@ -115,6 +116,11 @@ defmodule Creep.RanchTransport do
 
   def process(:internal, {%Publish{} = publish, socket}, data) do
     data.packet_processor.publish(data.broker_id, data.session, publish)
+    |> reply(socket, data)
+  end
+
+  def process(:internal, {%Puback{} = puback, socket}, data) do
+    data.packet_processor.puback(data.broker_id, data.session, puback)
     |> reply(socket, data)
   end
 

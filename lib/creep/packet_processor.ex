@@ -33,6 +33,9 @@ defmodule Creep.PacketProcessor do
   @doc "Process a pubrel packet"
   @callback pubrel(Creep.broker_id(), Session.t(), Pubrel.t()) :: {Pubcomp.t(), Session.t()}
 
+  @doc "Process a puback packet"
+  @callback puback(Creep.broker_id(), Session.t(), Puback.t()) :: {any(), Session.t()}
+
   @doc "Process a subcrcibe packet"
   @callback subscribe(Creep.broker_id(), Session.t(), Subscribe.t()) :: {Suback.t(), Session.t()}
 

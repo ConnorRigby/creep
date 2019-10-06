@@ -76,7 +76,9 @@ defmodule Creep.Packet do
         decoded -> {:ok, decoded}
       end
     catch
-      _, _ -> {:error, :invalid_packet}
+      type, error ->
+        IO.inspect(error, label: "#{type} decode")
+        {:error, :invalid_packet}
     end
   end
 
@@ -90,7 +92,8 @@ defmodule Creep.Packet do
       end
     catch
       type, error ->
-        IO.inspect(error, label: "#{type}")
+        IO.puts("Failed to encode packet: #{inspect(data)}")
+        IO.inspect(error, label: "#{type} encode")
         {:error, :invalid_packet}
     end
   end

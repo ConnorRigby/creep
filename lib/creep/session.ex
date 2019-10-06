@@ -15,7 +15,8 @@ defmodule Creep.Session do
           ref: reference(),
           pid: pid(),
           topic_filters: [{String.t(), 0..2}],
-          broker_id: Creep.broker_id()
+          broker_id: Creep.broker_id(),
+          publishes: [Creep.Packet.Publish.t()]
         }
 
   defstruct [
@@ -27,6 +28,7 @@ defmodule Creep.Session do
     :ref,
     :pid,
     :broker_id,
-    topic_filters: []
+    topic_filters: [],
+    publishes: []
   ]
 end
